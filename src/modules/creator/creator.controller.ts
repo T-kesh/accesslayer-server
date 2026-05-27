@@ -14,6 +14,7 @@ import { parseCreatorSortOptions } from './creator.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { wrapPublicCreatorListResponse } from '../creators/public-creator-list-envelope.utils';
 import { buildCreatorListRequestContext } from '../creators/creator-list-context.utils';
+import { warnIfUnrecognizedCreatorListSort } from '../creators/creators.sort-field.utils';
 import { normalizeCreatorListPage } from './creator-list-page.guard';
 
 // Legacy query schema
@@ -71,6 +72,8 @@ export const listCreators: RequestHandler = async (req, res) => {
   try {
     // Build request context
     const ctx = buildCreatorListRequestContext(req);
+
+    warnIfUnrecognizedCreatorListSort(ctx.query, req.requestId);
 
     // Parse query using legacy schema
     const parsed = parsePublicQuery(

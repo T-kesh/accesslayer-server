@@ -14,6 +14,7 @@ import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { buildCreatorListRequestContext } from './creator-list-context.utils';
+import { warnIfUnrecognizedCreatorListSort } from './creators.sort-field.utils';
 import {
    incrementFilterParseError,
    type FilterParseErrorCategory,
@@ -28,6 +29,8 @@ import {
 export const httpListCreators: AsyncController = async (req, res, next) => {
    try {
       const ctx = buildCreatorListRequestContext(req);
+
+      warnIfUnrecognizedCreatorListSort(ctx.query, req.requestId);
 
       // Validate query parameters
       const parsed = parsePublicQuery(

@@ -6,6 +6,7 @@
 
 import { httpListCreators } from './creators.controllers';
 import * as creatorsUtils from './creators.utils';
+import { logger } from '../../utils/logger.utils';
 
 // ── Lightweight request/response mocks ────────────────────────────────────────
 
@@ -483,5 +484,46 @@ describe('GET /api/v1/creators — empty feed with filter combinations', () => {
       expect(res.status).toHaveBeenCalledWith(400);
       const body = res.json.mock.calls[0][0];
       expect(body.success).toBe(false);
+   });
+});
+
+describe('GET /api/v1/creators — unrecognized sort logging', () => {
+   let warnSpy: jest.SpyInstance;
+
+   beforeEach(() => {
+      jest.spyOn(creatorsUtils, 'fetchCreatorList').mockResolvedValue([[], 0]);
+      warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => undefined);
+   });
+
+   afterEach(() => {
+      jest.restoreAllMocks();
+   });
+
+   it('logs unrecognized sort fields at warn level without changing the 400 response', async () => {
+      const req = makeReq({ sort: 'invalidField' });
+      req.requestId = 'req-invalid-sort';
+      const res = makeRes();
+      await httpListCreators(req, res, makeNext());
+
+      expect(warnSpy).toHaveBeenCalledWith(
+         expect.objectContaining({
+            msg: 'Unrecognized creator list sort field',
+            sort: 'invalidField',
+            requestId: 'req-invalid-sort',
+         })
+      );
+      expect(res.status).toHaveBeenCalledWith(400);
+   });
+
+   it('does not log for recognized sort fields', async () => {
+      const req = makeReq({ sort: 'displayName' });
+      req.requestId = 'req-valid-sort';
+      const res = makeRes();
+      await httpListCreators(req, res, makeNext());
+
+      const sortWarnings = warnSpy.mock.calls.filter(
+         ([payload]) => payload?.msg === 'Unrecognized creator list sort field'
+      );
+      expect(sortWarnings).toHaveLength(0);
    });
 });
