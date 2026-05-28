@@ -5,12 +5,14 @@
  * filter and pagination inputs to ensure cache invalidation works correctly.
  */
 import { CreatorListQueryType } from './creators.schemas';
+import { buildCanonicalParamString } from '../../utils/cache-key-params.utils';
 
 /**
  * Builds a cache key for the creator feed endpoint.
  *
- * The key includes all query parameters to ensure that different
- * filter/pagination combinations have separate cache entries.
+ * Parameters are sorted into a canonical order via `buildCanonicalParamString`
+ * so that two requests with identical params in different orders always map to
+ * the same cache entry.
  *
  * @param query - The parsed creator feed query parameters
  * @returns A deterministic cache key string
@@ -26,34 +28,25 @@ import { CreatorListQueryType } from './creators.schemas';
  *   search: 'example',
  *   include: ['stats']
  * });
- * // Returns: "creators:limit:20:offset:0:sort:createdAt:order:desc:verified:true:search:example:include:stats"
+ * // Returns: "creators:include:stats:limit:20:offset:0:order:desc:search:example:sort:createdAt:verified:true"
  * ```
  */
 export function buildCreatorFeedCacheKey(query: CreatorListQueryType): string {
-    const parts: string[] = ['creators'];
+    const params: Record<string, string | number | boolean | undefined> = {
+        limit: query.limit,
+        offset: query.offset,
+        sort: query.sort,
+        order: query.order,
+        verified: query.verified,
+        search: query.search !== '' ? query.search : undefined,
+        include:
+            query.include !== undefined && query.include.length > 0
+                ? query.include.join(',')
+                : undefined,
+    };
 
-    // Add pagination parameters
-    parts.push(`limit:${query.limit}`);
-    parts.push(`offset:${query.offset}`);
-
-    // Add sorting parameters
-    parts.push(`sort:${query.sort}`);
-    parts.push(`order:${query.order}`);
-
-    // Add filter parameters if present
-    if (query.verified !== undefined) {
-        parts.push(`verified:${query.verified}`);
-    }
-
-    if (query.search !== undefined && query.search !== '') {
-        parts.push(`search:${query.search}`);
-    }
-
-    if (query.include !== undefined && query.include.length > 0) {
-        parts.push(`include:${query.include.join(',')}`);
-    }
-
-    return parts.join(':');
+    const canonical = buildCanonicalParamString(params);
+    return canonical ? `creators:${canonical}` : 'creators';
 }
 
 /**
