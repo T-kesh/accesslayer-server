@@ -1,6 +1,7 @@
 import { envConfig } from '../config';
 import { prisma } from './prisma.utils';
 import { logger } from './logger.utils';
+import { formatCursorForDebug } from './cursor-debug.utils';
 
 /** Correlates a staleness warning with the indexer job that observed it. */
 export interface IndexerCursorStalenessContext {
@@ -72,6 +73,13 @@ export async function checkIndexerCursorStalenessFromStore(
    if (!status) {
       return;
    }
+
+   logger.debug({
+      msg: 'Checking indexer cursor staleness',
+      job: context.job ?? 'indexer',
+      cursor: formatCursorForDebug(status.cursor),
+      ledger: status.ledger,
+   });
 
    warnIfIndexerCursorStale(
       status.updatedAt,
