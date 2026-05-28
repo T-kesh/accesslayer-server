@@ -10,6 +10,7 @@ import {
    runIndexerFeatureFlagsStartupCheck,
 } from './utils/indexer-flags-startup-check.utils';
 import { checkOptionalDependencies } from './utils/startup.utils';
+import { describeDatabasePoolConfig } from './utils/db-pool-config.utils';
 import { stopOwnershipSnapshotCleanupJob } from './jobs/ownership-snapshot-cleanup.job';
 
 async function startServer() {
@@ -32,6 +33,13 @@ async function startServer() {
 
       await prisma.$connect();
       logger.info('Connected to database');
+
+      // Surface connection-pool settings (no credentials) so connection
+      // exhaustion is diagnosable. Logged before the server accepts requests.
+      logger.info(
+         describeDatabasePoolConfig(),
+         'Database connection pool configured'
+      );
 
       // Verify migrations on startup
       await verifyMigrationChecksums();

@@ -7,12 +7,13 @@ import { z } from 'zod';
 import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
 import { logger } from '../utils/logger.utils';
 import { mapUnknownRouteError } from '../utils/route-error.utils';
+import { buildErrorContext } from '../utils/error-context.utils';
 
 export class ApiError extends Error {
    statusCode: number;
    isOperational: boolean;
    errorCode?: ErrorCodeType;
- 
+
    constructor(
       statusCode: number,
       message: string,
@@ -55,10 +56,19 @@ export const errorHandler: ErrorRequestHandler = (
    res: Response,
    _next: NextFunction
 ): void => {
-   // Log error details
-   console.error('🚨 Error caught by global handler:');
-   console.error('URL:', req.method, req.originalUrl);
-   console.error('Error:', err);
+   // Log a consistent, structured error context (request id + normalized code
+   // together) so failures can be correlated with the response envelope. Stack
+   // traces are only attached in development builds.
+   logger.error(
+      {
+         ...buildErrorContext(err, {
+            requestId: req.requestId,
+            includeStack: envConfig.MODE === 'development',
+         }),
+         route: `${req.method} ${req.originalUrl}`,
+      },
+      'Error caught by global handler'
+   );
 
    // Handle Zod validation errors
    if (err instanceof z.ZodError || err.name === 'ZodError') {
@@ -127,7 +137,11 @@ export const errorHandler: ErrorRequestHandler = (
    }
 
    // Handle oversized request payload (413)
-   if (err.type === 'entity.too.large' || err.status === 413 || err.statusCode === 413) {
+   if (
+      err.type === 'entity.too.large' ||
+      err.status === 413 ||
+      err.statusCode === 413
+   ) {
       logger.warn({
          msg: 'Request payload too large',
          route: `${req.method} ${req.originalUrl}`,
