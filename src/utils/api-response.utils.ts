@@ -2,6 +2,7 @@
 // Shared API response formatters for consistent client-facing responses.
 
 import { Response } from 'express';
+import { ZodIssue } from 'zod';
 import { ErrorCode, ErrorCodeType } from '../constants/error.constants';
 import { requestContextStorage } from './als.utils';
 
@@ -152,6 +153,24 @@ export function sendPaginatedSuccess<T>(
 }
 
 // ── Convenience helpers ──────────────────────────────────────
+
+/**
+ * Maps Zod issues to the standard `details` array used in error responses.
+ *
+ * @example
+ * const result = schema.safeParse(input);
+ * if (!result.success) {
+ *   return sendValidationError(res, 'Invalid input', zodIssuesToDetails(result.error.issues));
+ * }
+ */
+export function zodIssuesToDetails(
+   issues: ZodIssue[]
+): Array<{ field: string; message: string }> {
+   return issues.map(issue => ({
+      field: issue.path.join('.'),
+      message: issue.message,
+   }));
+}
 
 export function sendValidationError(
    res: Response,
