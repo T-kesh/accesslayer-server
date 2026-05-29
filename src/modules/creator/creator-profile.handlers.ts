@@ -3,6 +3,7 @@ import {
    sendError,
    sendSuccess,
    sendValidationError,
+   zodIssuesToDetails,
    ErrorCode,
 } from '../../utils/api-response.utils';
 import { logger } from '../../utils/logger.utils';
@@ -30,10 +31,7 @@ export async function getCreatorProfileHandler(req: Request, res: Response) {
          return sendValidationError(
             res,
             'Invalid creator profile path parameters',
-            paramsResult.error.issues.map(issue => ({
-               field: issue.path.join('.'),
-               message: issue.message,
-            }))
+            zodIssuesToDetails(paramsResult.error.issues)
          );
       }
 
@@ -72,10 +70,7 @@ export async function upsertCreatorProfileHandler(req: Request, res: Response) {
          return sendValidationError(
             res,
             'Invalid creator profile path parameters',
-            paramsResult.error.issues.map(issue => ({
-               field: issue.path.join('.'),
-               message: issue.message,
-            }))
+            zodIssuesToDetails(paramsResult.error.issues)
          );
       }
 
@@ -84,10 +79,7 @@ export async function upsertCreatorProfileHandler(req: Request, res: Response) {
          return sendValidationError(
             res,
             'Invalid creator profile payload',
-            bodyResult.error.issues.map(issue => ({
-               field: issue.path.join('.'),
-               message: issue.message,
-            }))
+            zodIssuesToDetails(bodyResult.error.issues)
          );
       }
 

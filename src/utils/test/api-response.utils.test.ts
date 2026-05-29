@@ -3,6 +3,7 @@ import {
    sendForbidden,
    sendUnauthorized,
    buildErrorResponse,
+   zodIssuesToDetails,
    ErrorCode,
 } from '../api-response.utils';
 import { requestContextStorage } from '../als.utils';
@@ -128,5 +129,43 @@ describe('buildErrorResponse', () => {
       expect(body!.requestId).toBe(expectedRequestId);
       expect(capturedRequestId).toBe(expectedRequestId);
       expect(body!.requestId).toBe(capturedRequestId);
+   });
+});
+
+describe('zodIssuesToDetails', () => {
+   it('maps a single issue to a details entry', () => {
+      const result = zodIssuesToDetails([
+         { path: ['email'], message: 'Invalid email', code: 'invalid_string' } as any,
+      ]);
+      expect(result).toEqual([{ field: 'email', message: 'Invalid email' }]);
+   });
+
+   it('joins nested paths with a dot', () => {
+      const result = zodIssuesToDetails([
+         { path: ['address', 'city'], message: 'Required', code: 'invalid_type' } as any,
+      ]);
+      expect(result).toEqual([{ field: 'address.city', message: 'Required' }]);
+   });
+
+   it('produces an empty string field for root-level issues', () => {
+      const result = zodIssuesToDetails([
+         { path: [], message: 'Input must be an object', code: 'invalid_type' } as any,
+      ]);
+      expect(result).toEqual([{ field: '', message: 'Input must be an object' }]);
+   });
+
+   it('returns an empty array for an empty issues list', () => {
+      expect(zodIssuesToDetails([])).toEqual([]);
+   });
+
+   it('maps multiple issues preserving order', () => {
+      const result = zodIssuesToDetails([
+         { path: ['name'], message: 'Required', code: 'invalid_type' } as any,
+         { path: ['age'], message: 'Must be a number', code: 'invalid_type' } as any,
+      ]);
+      expect(result).toEqual([
+         { field: 'name', message: 'Required' },
+         { field: 'age', message: 'Must be a number' },
+      ]);
    });
 });

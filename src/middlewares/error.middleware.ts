@@ -1,4 +1,3 @@
-// src/middlewares/error.middleware.ts
 import { NextFunction, Request, Response } from 'express';
 import { envConfig } from '../config';
 import { ErrorRequestHandler } from 'express';
@@ -9,6 +8,7 @@ import { logger } from '../utils/logger.utils';
 import { mapUnknownRouteError } from '../utils/route-error.utils';
 import { buildErrorContext } from '../utils/error-context.utils';
 import { sanitizeLogFieldValue } from '../utils/log-field-sanitizer.utils';
+import { buildErrorResponse, zodIssuesToDetails } from '../utils/api-response.utils';
 
 export class ApiError extends Error {
    statusCode: number;
@@ -73,12 +73,14 @@ export const errorHandler: ErrorRequestHandler = (
 
    // Handle Zod validation errors
    if (err instanceof z.ZodError || err.name === 'ZodError') {
-      res.status(400).json({
-         success: false,
-         code: ErrorCode.VALIDATION_ERROR,
-         message: 'Validation failed',
-         errors: err.errors || err.issues,
-      });
+      const issues: z.ZodIssue[] = err.errors ?? err.issues ?? [];
+      res.status(400).json(
+         buildErrorResponse(
+            ErrorCode.VALIDATION_ERROR,
+            'Validation failed',
+            zodIssuesToDetails(issues)
+         )
+      );
       return;
    }
 
