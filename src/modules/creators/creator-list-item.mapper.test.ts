@@ -1,19 +1,51 @@
-import { strict as assert } from 'assert';
 import { mapCreatorListItem } from './creator-list-item.mapper';
+import { requestContextStorage } from '../../utils/als.utils';
+import { logger } from '../../utils/logger.utils';
 
-function run() {
-   const input = { id: '1', displayName: 'John', avatarUrl: null } as any;
+jest.mock('../../utils/logger.utils', () => ({
+   logger: { warn: jest.fn() },
+}));
 
-   const result = mapCreatorListItem(input);
+const warnMock = logger.warn as jest.Mock;
 
-   assert.deepEqual(result, {
-      id: '1',
-      name: 'John',
-      avatar: null,
-      followers: 0,
+beforeEach(() => {
+   warnMock.mockClear();
+});
+
+describe('mapCreatorListItem()', () => {
+   it('maps the public creator list item shape', () => {
+      const input = { id: '1', displayName: 'John', avatarUrl: null } as any;
+
+      const result = mapCreatorListItem(input);
+
+      expect(result).toEqual({
+         id: '1',
+         name: 'John',
+         avatar: null,
+         followers: 0,
+      });
+      expect(warnMock).not.toHaveBeenCalled();
    });
 
-   console.log('creator-list-item.mapper test passed');
-}
+   it('warns when a schema-required creator field is unexpectedly null', () => {
+      const input = { id: 'creator-1', displayName: null, avatarUrl: null } as any;
 
-run();
+      const result = requestContextStorage.run(
+         { path: '/api/v1/creators', method: 'GET', requestId: 'req-333' },
+         () => mapCreatorListItem(input)
+      );
+
+      expect(result).toEqual({
+         id: 'creator-1',
+         name: null,
+         avatar: null,
+         followers: 0,
+      });
+      expect(warnMock).toHaveBeenCalledWith({
+         msg: 'Unexpected null creator field in database result',
+         fieldName: 'displayName',
+         creatorId: 'creator-1',
+         requestId: 'req-333',
+      });
+   });
+});
