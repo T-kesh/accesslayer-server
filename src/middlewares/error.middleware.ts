@@ -86,6 +86,12 @@ export const errorHandler: ErrorRequestHandler = (
 
    // Handle JWT errors
    if (err.name === 'JsonWebTokenError') {
+      logger.warn({
+         msg: 'Auth token validation failed',
+         reason: err.message,
+         route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
+         requestId: req.requestId,
+      });
       res.status(401).json({
          success: false,
          code: ErrorCode.JWT_ERROR,
@@ -95,6 +101,12 @@ export const errorHandler: ErrorRequestHandler = (
    }
 
    if (err.name === 'TokenExpiredError') {
+      logger.warn({
+         msg: 'Auth token validation failed',
+         reason: 'Token has expired',
+         route: `${req.method} ${sanitizeLogFieldValue(req.originalUrl)}`,
+         requestId: req.requestId,
+      });
       res.status(401).json({
          success: false,
          code: ErrorCode.JWT_ERROR,
