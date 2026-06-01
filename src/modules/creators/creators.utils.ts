@@ -9,9 +9,10 @@ import {
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
 import { logger } from '../../utils/logger.utils';
 import { envConfig } from '../../config';
-import { buildCreatorFeedWhere } from './creator-feed-filter-combinator.utils';
+import { buildCreatorFeedWhere, CreatorFeedWhere } from './creator-feed-filter-combinator.utils';
 import { CREATOR_LIST_DEFAULT_SELECT } from '../../constants/creator-list-projection.constants';
 import { getCachedCreatorList, setCachedCreatorList } from './creators.cache';
+import { captureQueryPlan } from '../../utils/query-plan.utils';
 
 /**
  * Fetch paginated list of creators from the database.
@@ -47,6 +48,18 @@ export async function fetchCreatorList(
 
    const durationMs = Date.now() - start;
    if (durationMs > envConfig.CREATOR_LIST_SLOW_QUERY_THRESHOLD_MS) {
+      // In debug (development) mode, capture the query execution plan so
+      // missing indexes and inefficient joins are immediately visible in logs.
+      // The plan is never collected in production to avoid extra round-trips
+      // and log bloat.
+      const queryPlan =
+         envConfig.MODE === 'development'
+            ? await captureQueryPlan(
+                 buildCreatorFeedExplainSql(where),
+                 buildCreatorFeedExplainParams(where)
+              )
+            : null;
+
       logger.warn({
          msg: 'Slow creator list query',
          durationMs,
@@ -57,6 +70,7 @@ export async function fetchCreatorList(
          hasVerifiedFilter: verified !== undefined,
          limit,
          offset,
+         ...(queryPlan !== null && { queryPlan }),
       });
    }
 
@@ -89,4 +103,58 @@ export function createEmptyCreatorListResponse(
          total: 0,
       })
    );
+}
+
+// ── Query-plan helpers ────────────────────────────────────────────────────────
+
+/**
+ * Builds the raw SQL SELECT that mirrors the Prisma `findMany` for the creator
+ * feed.  The statement is used exclusively as the argument to EXPLAIN and is
+ * never executed directly.
+ *
+ * @param where - The Prisma where clause produced by `buildCreatorFeedWhere`.
+ * @returns A parameterised SQL string (positional `$N` placeholders).
+ */
+export function buildCreatorFeedExplainSql(where: CreatorFeedWhere): string {
+   const conditions: string[] = [];
+   let paramIndex = 1;
+
+   if (where.isVerified !== undefined) {
+      conditions.push(`"isVerified" = $${paramIndex++}`);
+   }
+
+   if (where.OR && where.OR.length > 0) {
+      conditions.push(
+         `("handle" ILIKE $${paramIndex++} OR "displayName" ILIKE $${paramIndex++})`
+      );
+   }
+
+   const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+   return `SELECT * FROM "CreatorProfile" ${whereClause}`;
+}
+
+/**
+ * Builds the ordered list of parameter values that correspond to the
+ * positional placeholders produced by `buildCreatorFeedExplainSql`.
+ *
+ * @param where - The Prisma where clause produced by `buildCreatorFeedWhere`.
+ * @returns An array of values in the same order as the SQL placeholders.
+ */
+export function buildCreatorFeedExplainParams(where: CreatorFeedWhere): unknown[] {
+   const params: unknown[] = [];
+
+   if (where.isVerified !== undefined) {
+      params.push(where.isVerified);
+   }
+
+   if (where.OR && where.OR.length > 0) {
+      // Both handle and displayName use the same search term.
+      const searchTerm = where.OR[0]?.handle?.contains ?? '';
+      params.push(`%${searchTerm}%`);
+      params.push(`%${searchTerm}%`);
+   }
+
+   return params;
 }
