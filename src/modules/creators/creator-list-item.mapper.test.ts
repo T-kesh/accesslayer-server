@@ -14,7 +14,7 @@ function run() {
       followers: 0,
    });
 
-   console.log('creator-list-item.mapper test passed');
+    console.log('creator-list-item.mapper test passed');
 }
 
 run();
