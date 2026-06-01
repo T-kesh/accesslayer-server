@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.utils';
 import { logger } from './logger.utils';
 import { envConfig } from '../config';
