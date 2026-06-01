@@ -52,7 +52,7 @@ const mockAllCreators = [...mockMatchingCreators, ...mockNonMatchingCreators];
 describe('GET /api/v1/creators — total count accuracy after filter', () => {
    beforeEach(() => {
       // Mock fetchCreatorList implementation to return different totals depending on filter
-      jest.spyOn(creatorsUtils, 'fetchCreatorList').mockImplementation(async (query) => {
+      jest.spyOn(creatorsUtils, 'fetchCreatorList').mockImplementation(async (query: any) => {
          if (query.category === 'gaming') {
             return [mockMatchingCreators, mockMatchingCreators.length]; // 3 creators
          }
