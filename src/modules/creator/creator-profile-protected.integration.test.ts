@@ -111,4 +111,62 @@ describe('PUT /api/v1/creators/:creatorId/profile â€” protected route heade
          })
       );
    });
+
+   it('returns 400 when the wallet address has wrong length', async () => {
+      const res = await supertest(app)
+         .put('/api/v1/creators/creator-1/profile')
+         .set('x-wallet-address', 'GSHORT')
+         .send({ displayName: 'Alice Example' });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual(
+         expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+               code: 'BAD_REQUEST',
+            }),
+         })
+      );
+      expect(res.body.error.details).toBeDefined();
+      expect(res.body.error.details[0].field).toBe('x-wallet-address');
+   });
+
+   it('returns 400 when the wallet address has invalid characters', async () => {
+      const res = await supertest(app)
+         .put('/api/v1/creators/creator-1/profile')
+         .set(
+            'x-wallet-address',
+            'G!!!!!AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+         )
+         .send({ displayName: 'Alice Example' });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual(
+         expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+               code: 'BAD_REQUEST',
+            }),
+         })
+      );
+      expect(res.body.error.details).toBeDefined();
+      expect(res.body.error.details[0].field).toBe('x-wallet-address');
+   });
+
+   it('allows requests with a valid Stellar address format to reach the handler', async () => {
+      const res = await supertest(app)
+         .put('/api/v1/creators/creator-1/profile')
+         .set(
+            'x-wallet-address',
+            'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+         )
+         .send({ displayName: 'Alice Example' });
+
+      expect(res.status).toBe(202);
+      expect(res.body).toEqual(
+         expect.objectContaining({
+            success: true,
+         })
+      );
+   });
 });

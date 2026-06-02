@@ -12,6 +12,7 @@ import {
 import { checkOptionalDependencies } from './utils/startup.utils';
 import { describeDatabasePoolConfig } from './utils/db-pool-config.utils';
 import { stopOwnershipSnapshotCleanupJob } from './jobs/ownership-snapshot-cleanup.job';
+import { maskSensitiveConfigValues } from './utils/config-mask.utils';
 
 async function startServer() {
    try {
@@ -39,6 +40,14 @@ async function startServer() {
       logger.info(
          describeDatabasePoolConfig(),
          'Database connection pool configured'
+      );
+
+      // Log startup config summary with sensitive values masked.
+      // See `maskSensitiveConfigValues` in utils/config-mask.utils.ts for
+      // the list of patterns considered sensitive.
+      logger.info(
+         maskSensitiveConfigValues(),
+         'Startup configuration summary'
       );
 
       // Verify migrations on startup

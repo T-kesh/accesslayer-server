@@ -9,7 +9,7 @@ const DEFAULT_PROTECTED_ROUTE_HEADERS: Record<
    string
 > = {
    'x-admin-id': 'admin-test-1',
-   'x-wallet-address': 'GTESTWALLETADDRESS',
+   'x-wallet-address': 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
 };
 
 /**
