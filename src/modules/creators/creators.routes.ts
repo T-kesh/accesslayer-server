@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { httpListCreators, httpGetCreatorStats } from './creators.controllers';
+import { httpGetCreatorHolders } from './creator-holders.controller';
 import { cacheControl } from '../../middlewares/cache-control.middleware';
 import { CREATOR_PUBLIC_ROUTE_CACHE_PRESETS } from '../../constants/creator-public-cache.constants';
 import { CREATOR_PUBLIC_ROUTE_NAMES } from '../../constants/creator-public-routes.constants';
@@ -44,6 +45,24 @@ creatorsRouter.get(
 );
 // 405 handler for /:id/stats
 creatorsRouter.all('/:id/stats', (_req, res) => {
+   res.set('Allow', 'GET').sendStatus(405);
+});
+
+/**
+ * GET /api/v1/creators/:id/holders
+ *
+ * Returns a paginated list of wallets that hold keys for a creator.
+ * Supports ?sort=held_since to surface earliest supporters first.
+ * Public endpoint with 5-minute cache.
+ */
+creatorsRouter.get(
+   '/:id/holders',
+   createCreatorReadMetricsMiddleware('holders'),
+   cacheControl(CREATOR_PUBLIC_ROUTE_CACHE_PRESETS[CREATOR_PUBLIC_ROUTE_NAMES.GET_HOLDERS]),
+   httpGetCreatorHolders
+);
+// 405 handler for /:id/holders
+creatorsRouter.all('/:id/holders', (_req, res) => {
    res.set('Allow', 'GET').sendStatus(405);
 });
 
