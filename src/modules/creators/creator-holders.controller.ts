@@ -1,17 +1,17 @@
 import { AsyncController } from '../../types/auth.types';
 import { CreatorHoldersQuerySchema } from './creator-holders.schemas';
 import {
-  findCreatorByIdOrHandle,
-  fetchCreatorHolders,
+   findCreatorByIdOrHandle,
+   fetchCreatorHolders,
 } from './creator-holders.service';
 import {
-  sendSuccess,
-  sendNotFound,
-  sendValidationError,
+   sendSuccess,
+   sendValidationError,
 } from '../../utils/api-response.utils';
 import { attachTimestampHeader } from '../../utils/timestamp-headers.utils';
 import { parsePublicQuery } from '../../utils/public-query-parse.utils';
 import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
+import { handleCreatorParamNotFound } from '../creator/creator.utils';
 
 /**
  * Controller for GET /api/v1/creators/:id/holders
@@ -25,34 +25,32 @@ import { buildOffsetPaginationMeta } from '../../utils/pagination.utils';
  * - Optional ?sort=held_since returns earliest buyers first.
  */
 export const httpGetCreatorHolders: AsyncController = async (req, res, next) => {
-  try {
-    const rawId = req.params['id'];
-    const id = typeof rawId === 'string' ? rawId : String(rawId ?? '');
+   try {
+      const rawId = req.params['id'];
+      const id = typeof rawId === 'string' ? rawId : String(rawId ?? '');
 
-    const parsed = parsePublicQuery(CreatorHoldersQuerySchema, req.query, {
-      debugContext: 'creator-holders-query',
-    });
+      const parsed = parsePublicQuery(CreatorHoldersQuerySchema, req.query, {
+         debugContext: 'creator-holders-query',
+      });
 
-    if (!parsed.ok) {
-      return sendValidationError(res, 'Invalid query parameters', parsed.details);
-    }
+      if (!parsed.ok) {
+         return sendValidationError(res, 'Invalid query parameters', parsed.details);
+      }
 
-    const creator = await findCreatorByIdOrHandle(id);
-    if (!creator) {
-      return sendNotFound(res, 'Creator');
-    }
+      const creator = await findCreatorByIdOrHandle(id);
+      if (!handleCreatorParamNotFound(res, creator)) return;
 
-    const [holders, total] = await fetchCreatorHolders(creator.id, parsed.data);
+      const [holders, total] = await fetchCreatorHolders(creator.id, parsed.data);
 
-    const meta = buildOffsetPaginationMeta({
-      limit: parsed.data.limit,
-      offset: parsed.data.offset,
-      total,
-    });
+      const meta = buildOffsetPaginationMeta({
+         limit: parsed.data.limit,
+         offset: parsed.data.offset,
+         total,
+      });
 
-    attachTimestampHeader(res);
-    sendSuccess(res, { items: holders, meta });
-  } catch (error) {
-    next(error);
-  }
+      attachTimestampHeader(res);
+      sendSuccess(res, { items: holders, meta });
+   } catch (error) {
+      next(error);
+   }
 };
