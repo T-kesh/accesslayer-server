@@ -1,4 +1,6 @@
 import { prisma } from '../../utils/prisma.utils';
+import { envConfig } from '../../config';
+import { logger } from '../../utils/logger.utils';
 import { CreateAlertInput } from './alert.schemas';
 
 export type PriceMovement = {
@@ -56,6 +58,72 @@ function toNumber(value: number | string | { toString(): string }): number {
     return typeof value === 'number' ? value : Number(value.toString());
 }
 
+function maskCallbackUrl(callbackUrl: string): string {
+    try {
+        const url = new URL(callbackUrl);
+        return `${url.protocol}//${url.host}`;
+    } catch {
+        return 'invalid-url';
+    }
+}
+
+function getDeliveryErrorCode(error: unknown): string {
+    if (error instanceof Error && error.message.startsWith('HTTP_')) {
+        return error.message;
+    }
+
+    return error instanceof Error ? error.name : 'UNKNOWN_ERROR';
+}
+
+async function deliverPriceAlertWebhook(
+    alert: {
+        id: string;
+        creatorId: string;
+        walletAddress: string;
+        targetPrice: unknown;
+        direction: string;
+        callbackUrl: string;
+    },
+    payload: Record<string, unknown>
+): Promise<void> {
+    const maxAttempts = envConfig.WEBHOOK_RETRY_MAX_ATTEMPTS;
+    const maskedUrl = maskCallbackUrl(alert.callbackUrl);
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const response = await fetch(alert.callbackUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP_${response.status}`);
+            }
+
+            return;
+        } catch (error) {
+            const logFields = {
+                alert_id: alert.id,
+                retry_count: attempt,
+                error_code: getDeliveryErrorCode(error),
+                failure_reason: error instanceof Error ? error.message : 'Unknown error',
+                masked_url: maskedUrl,
+            };
+
+            if (attempt === maxAttempts) {
+                logger.error(
+                    { ...logFields, final: true },
+                    'Price alert webhook delivery exhausted retries'
+                );
+                throw error;
+            }
+
+            logger.warn(logFields, 'Price alert webhook delivery failed');
+        }
+    }
+}
+
 /**
  * Evaluates active alerts for a creator price movement and delivers only alerts
  * whose threshold was crossed in the registered direction.
@@ -89,18 +157,14 @@ export async function evaluatePriceAlertsForMovement(
             continue;
         }
 
-        await fetch(alert.callbackUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                event_type: 'price_alert',
-                alert_id: alert.id,
-                creator_id: alert.creatorId,
-                wallet_address: alert.walletAddress,
-                target_price: targetPrice,
-                current_price: currentPrice,
-                direction: alert.direction,
-            }),
+        await deliverPriceAlertWebhook(alert, {
+            event_type: 'price_alert',
+            alert_id: alert.id,
+            creator_id: alert.creatorId,
+            wallet_address: alert.walletAddress,
+            target_price: targetPrice,
+            current_price: currentPrice,
+            direction: alert.direction,
         });
 
         await prisma.priceAlert.update({
