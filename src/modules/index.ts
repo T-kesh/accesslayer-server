@@ -11,6 +11,7 @@ import activityRouter from './activity/activity.routes';
 import ownershipRouter from './ownership/ownership.routes';
 import webhookRouter from './webhooks/webhook.router';
 import walletsRouter from './wallets/wallets.routes';
+import alertsRouter from './alerts/alert.router';
 import { BASE as CREATORS_BASE } from '../constants/creator.constants';
 
 const router = Router();
@@ -27,5 +28,6 @@ router.use('/activity', activityRouter);
 router.use('/ownership', ownershipRouter);
 router.use(CREATORS_BASE, webhookRouter);
 router.use('/wallets', walletsRouter);
+router.use('/alerts', alertsRouter);
 
 export default router;
