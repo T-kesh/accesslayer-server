@@ -96,9 +96,13 @@ export const mapCreatorListItem = (
    logIfFieldTypeMismatch(creator, 'createdAt');
    logIfFieldTypeMismatch(creator, 'updatedAt');
 
-   const snapshot = safeRead(creator, 'priceSnapshot', null);
-   const currentPrice = snapshot ? snapshot.currentPrice : null;
-   const price24hAgo = snapshot ? snapshot.price24hAgo : null;
+   const snapshot = safeRead(creator, 'priceSnapshot', null) as {
+      currentPrice: bigint;
+      price24hAgo: bigint;
+      lastTradeAt: Date | null;
+   } | null;
+   const currentPrice = snapshot?.currentPrice ?? null;
+   const price24hAgo = snapshot?.price24hAgo ?? null;
 
    let priceChange24h: number | null = null;
    if (currentPrice !== null && price24hAgo !== null && price24hAgo !== BigInt(0)) {
