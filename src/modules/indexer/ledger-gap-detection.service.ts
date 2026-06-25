@@ -3,7 +3,6 @@
 
 import { prisma } from '../../utils/prisma.utils';
 import { logger } from '../../utils/logger.utils';
-import { envConfig } from '../../config';
 
 export interface LedgerGap {
   detected: boolean;
