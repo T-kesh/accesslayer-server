@@ -164,4 +164,57 @@ describe('#419 min_price and max_price filtering', () => {
       data: { isVerified: false },
     });
   });
+
+  it('#509 price range filter combined with price_desc sort returns filtered results sorted correctly', async () => {
+    const res = await supertest(app).get(
+      '/api/v1/creators?minPrice=2000000&maxPrice=4000000&sort=price&order=desc'
+    );
+    expect(res.status).toBe(200);
+
+    const items = (res.body.data.items as any[])
+      .filter((c: any) => creatorIds.includes(c.id));
+
+    // Only creator 1 (3M) should be in range [2M, 4M]
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe(creatorIds[1]);
+    expect(items[0].currentPrice).toBe('3000000');
+  });
+
+  it('#509 price range filter combined with price_asc sort returns filtered results sorted correctly', async () => {
+    const res = await supertest(app).get(
+      '/api/v1/creators?minPrice=1000000&maxPrice=5000000&sort=price&order=asc'
+    );
+    expect(res.status).toBe(200);
+
+    const items = (res.body.data.items as any[])
+      .filter((c: any) => creatorIds.includes(c.id));
+
+    // All 3 creators should be in range [1M, 5M]
+    expect(items).toHaveLength(3);
+
+    // Sorted by price ascending: 1M, 3M, 5M
+    expect(items[0].id).toBe(creatorIds[0]);
+    expect(items[0].currentPrice).toBe('1000000');
+
+    expect(items[1].id).toBe(creatorIds[1]);
+    expect(items[1].currentPrice).toBe('3000000');
+
+    expect(items[2].id).toBe(creatorIds[2]);
+    expect(items[2].currentPrice).toBe('5000000');
+  });
+
+  it('#509 price range filter excludes creators outside range regardless of sort position', async () => {
+    const res = await supertest(app).get(
+      '/api/v1/creators?minPrice=2000000&maxPrice=4000000&sort=price&order=desc'
+    );
+    expect(res.status).toBe(200);
+
+    const items = (res.body.data.items as any[])
+      .filter((c: any) => creatorIds.includes(c.id));
+
+    // Creator 0 (1M) and creator 2 (5M) should be excluded even though
+    // they would appear in different sort positions
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe(creatorIds[1]); // Only 3M is in range
+  });
 });
