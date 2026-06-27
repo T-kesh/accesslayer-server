@@ -44,7 +44,7 @@ export function mapCreatorListSort(
    if (sort === 'price') {
       return {
          priceSnapshot: {
-            currentPrice: { sort: order, nulls: 'last' },
+            currentPrice: order,
          },
       } as Prisma.CreatorProfileOrderByWithRelationInput;
    }
